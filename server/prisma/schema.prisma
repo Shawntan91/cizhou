@@ -1,0 +1,140 @@
+// Prisma schema — AI 背单词网站
+// SQLite database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  email        String    @unique
+  password     String
+  created_time DateTime  @default(now())
+
+  vocabularyBooks VocabularyBook[]
+  learningRecords  LearningRecord[]
+  pdfDocuments     PDFDocument[]
+}
+
+model Word {
+  id          Int      @id @default(autoincrement())
+  word        String   @unique
+  phonetic    String?
+  meaning     String?
+  example     String?
+  frequency   Int      @default(1)
+  level       String? // A/B/C/D
+  root        String?
+  mnemonic    String?
+  exam_years  String? // "2015,2018,2022"
+  category    String? // core | polymeaning | writing
+
+  learningRecords LearningRecord[]
+}
+
+model VocabularyBook {
+  id          Int      @id @default(autoincrement())
+  name        String
+  type        String // exam | pdf | custom
+  created_time DateTime @default(now())
+  userId      Int
+  user        User    @relation(fields: [userId], references: [id])
+}
+
+model LearningRecord {
+  id              Int      @id @default(autoincrement())
+  status          Int      @default(0) // 0=new 1=不认识 2=模糊 3=认识
+  interval_index  Int      @default(0)
+  next_review_time DateTime @default(now())
+  review_count    Int      @default(0)
+  last_reviewed   DateTime?
+  bookId          Int?     // 所属词书（可选）
+  userId          Int
+  wordId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  word            Word     @relation(fields: [wordId], references: [id])
+
+  @@unique([userId, wordId])
+}
+
+model PDFDocument {
+  id          Int      @id @default(autoincrement())
+  filename    String
+  file_path   String
+  total_pages Int      @default(0)
+  status      String   @default("uploaded") // uploaded | processing | done | failed
+  upload_time DateTime @default(now())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+
+  analyses PDFAnalysis[]
+}
+
+model PDFAnalysis {
+  id            Int      @id @default(autoincrement())
+  status        String   @default("pending") // pending | running | done | failed
+  error_message String?
+  summary       String?
+  total_words   Int      @default(0)
+  created_time  DateTime @default(now())
+  documentId    Int
+  document      PDFDocument @relation(fields: [documentId], references: [id])
+
+  examWords  ExamWord[]
+  sentences  ArticleSentence[]
+}
+
+model ExamWord {
+  id                Int      @id @default(autoincrement())
+  word              String
+  phonetic          String?
+  meaning           String?
+  frequency         Int      @default(1)
+  position          String? // Text 2 Paragraph 3
+  original_sentence String?
+  importance        Int      @default(3) // 1-5
+  category          String?  // A | B | C | D
+  suggestion        String?
+  analysisId        Int
+  analysis          PDFAnalysis @relation(fields: [analysisId], references: [id])
+
+  @@unique([analysisId, word])
+}
+
+model WordMeaning {
+  id             Int     @id @default(autoincrement())
+  word           String
+  common_meaning String
+  exam_meaning   String
+  example        String?
+  source_year    String?
+  frequency      Int     @default(1)
+
+  @@unique([word])
+}
+
+model WritingExpression {
+  id                 Int     @id @default(autoincrement())
+  basic_word         String
+  advanced_expression String
+  meaning            String
+  example_sentence   String?
+  topic              String?
+
+  @@unique([basic_word, advanced_expression])
+}
+
+model ArticleSentence {
+  id         Int    @id @default(autoincrement())
+  page       Int
+  text       String
+  position   String?
+  analysisId Int
+  analysis   PDFAnalysis @relation(fields: [analysisId], references: [id])
+}

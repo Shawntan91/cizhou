@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  cizhou:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cizhou-vocab
+    restart: always
+    ports:
+      # 左边为对外公网端口，若需要直接通过 80 端口访问，可改为 "80:4000"
+      - "4000:4000"
+    volumes:
+      # 持久化挂载本地数据库与已提取的真题词库
+      - ./server/prisma/dev.db:/app/server/prisma/dev.db
+      - ./server/uploads:/app/server/uploads
+    environment:
+      - PORT=4000
+      - DATABASE_URL=file:./dev.db
+      - JWT_SECRET=cizhou-secret-key-production-2026
+      # 如需外接大模型，可在此配置 API Key
+      # - AI_API_KEY=your_key_here
+      # - AI_API_URL=https://api.openai.com
+      # - AI_MODEL=gpt-4o-mini
